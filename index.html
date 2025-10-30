@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -50,6 +50,39 @@
     flex-direction: column;
     height: 100vh;
     overflow: hidden;
+  }
+
+  /* === HEADER WITH LOGO === */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(20, 20, 20, 0.9);
+    padding: 0.8rem 1.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+  }
+
+  .logo-container {
+    display: flex;
+    align-items: center;
+  }
+
+  .logo {
+    width: 32px;
+    height: 32px;
+    margin-right: 12px;
+    border-radius: 6px;
+  }
+
+  .logo-text {
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: var(--accent);
+    letter-spacing: 1px;
   }
 
   /* === SEARCH BAR CAPSULE === */
@@ -115,7 +148,7 @@
   /* === TERMINAL AREA === */
   .terminal {
     flex: 1;
-    padding: 1rem 1rem 5rem; /* Tambah padding bawah yang cukup untuk command input */
+    padding: 1rem 1rem 8rem; /* Tambah padding bawah yang cukup untuk command input */
     overflow-y: auto;
     line-height: 1.6;
     font-size: 0.95rem;
@@ -622,15 +655,90 @@
     color: var(--gray);
   }
 
+  /* Fallback untuk browser lama */
+  .no-flexbox {
+    display: block;
+  }
+  
+  .no-flexbox .terminal {
+    height: calc(100vh - 200px);
+  }
+  
+  .no-flexbox .command-input-container {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    transform: none;
+    width: 100%;
+    margin: 1rem auto;
+  }
+
   @media (max-width: 768px) {
+    .header {
+      padding: 0.6rem 1rem;
+    }
+    
+    .logo {
+      width: 28px;
+      height: 28px;
+    }
+    
+    .logo-text {
+      font-size: 1.2rem;
+    }
+    
     .search-container { width: 90%; }
-    .terminal { font-size: 0.9rem; padding: 0.8rem 0.8rem 6rem; } /* Tambah padding bawah untuk mobile */
+    .terminal { 
+      font-size: 0.9rem; 
+      padding: 0.8rem 0.8rem 10rem; /* Tambah padding bawah untuk mobile */
+    }
     .command-input-container {
       width: 95%;
       bottom: 1rem;
       padding: 0.6rem 1rem;
     }
     .music-controls { justify-content: center; }
+    
+    /* Adjust for mobile keyboard */
+    @supports (-webkit-touch-callout: none) {
+      .terminal {
+        padding-bottom: 12rem; /* Extra space for iOS keyboard */
+      }
+      
+      .command-input-container {
+        bottom: 2rem; /* Higher position when keyboard is open */
+      }
+    }
+  }
+  
+  /* Fallback untuk browser yang tidak support backdrop-filter */
+  @supports not (backdrop-filter: blur(8px)) {
+    .header,
+    .search-bar,
+    .command-input-container {
+      background: rgba(20, 20, 20, 0.95);
+    }
+  }
+  
+  /* Fallback untuk browser yang tidak support CSS Grid */
+  @supports not (display: grid) {
+    .terminal-content {
+      display: block;
+    }
+  }
+  
+  /* Fallback untuk browser yang tidak support CSS Variables */
+  :root {
+    --bg: #000;
+    --text: #e6e6e6;
+    --accent: #00ffcc;
+    --gray: #888;
+    --font: 'SF Mono', 'Fira Code', monospace;
+  }
+  
+  /* Fallback font stack */
+  body {
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   }
 </style>
 
@@ -641,8 +749,11 @@
 </head>
 <body>
 
-  <!-- Search Bar Capsule -->
-  <div class="search-bar">
+  <!-- Header with Logo -->
+  <div class="header">
+    <div class="logo-container">
+      <div class="logo-text">X3VA      CLI </div>
+    </div>
     <div class="search-container">
       <input type="text" id="search" class="search-input" placeholder="Search X3VA...">
       <div id="autocomplete-suggestions" class="autocomplete-suggestions"></div>
@@ -705,6 +816,7 @@
     const inputAutocompleteSuggestions = document.getElementById('input-autocomplete-suggestions');
     const autoRefreshIndicator = document.getElementById('auto-refresh-indicator');
     const refreshCountdown = document.getElementById('refresh-countdown');
+    const commandInputContainer = document.querySelector('.command-input-container');
     
     // Application state
     const state = {
@@ -798,20 +910,95 @@
     let shouldAutoScroll = true;
     let isTyping = false;
     let isEditingProfile = false;
+    let isKeyboardOpen = false;
+
+    // Detect keyboard open on mobile
+    function detectKeyboardOpen() {
+      const viewportHeight = window.innerHeight;
+      const initialHeight = window.initialHeight || viewportHeight;
+      
+      if (!window.initialHeight) {
+        window.initialHeight = viewportHeight;
+      }
+      
+      // If viewport height is significantly reduced, keyboard is likely open
+      if (viewportHeight < initialHeight * 0.8) {
+        if (!isKeyboardOpen) {
+          isKeyboardOpen = true;
+          adjustForKeyboard();
+        }
+      } else {
+        if (isKeyboardOpen) {
+          isKeyboardOpen = false;
+          resetAfterKeyboard();
+        }
+      }
+    }
+
+    // Adjust UI when keyboard is open
+    function adjustForKeyboard() {
+      // Move command input higher when keyboard is open
+      commandInputContainer.style.bottom = '4rem';
+      
+      // Add extra padding to terminal to prevent content from being hidden
+      term.style.paddingBottom = '12rem';
+      
+      // Scroll to bottom to show the input
+      setTimeout(() => {
+        term.scrollTo({ top: term.scrollHeight, behavior: "smooth" });
+      }, 100);
+    }
+
+    // Reset UI after keyboard closes
+    function resetAfterKeyboard() {
+      // Reset command input position
+      commandInputContainer.style.bottom = '1.5rem';
+      
+      // Reset terminal padding
+      if (window.innerWidth <= 768) {
+        term.style.paddingBottom = '10rem';
+      } else {
+        term.style.paddingBottom = '8rem';
+      }
+    }
+
+    // Listen for resize events to detect keyboard open/close
+    window.addEventListener('resize', detectKeyboardOpen);
+    
+    // Also check for visual viewport API if available (better for mobile)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', detectKeyboardOpen);
+    }
 
     // Fungsi untuk menyimpan UID ke localStorage
     function saveUserIdToLocalStorage(uid) {
-      localStorage.setItem('x3va_user_uid', uid);
+      try {
+        localStorage.setItem('x3va_user_uid', uid);
+      } catch (e) {
+        // Fallback for browsers with localStorage disabled
+        console.log('LocalStorage not available');
+      }
     }
 
     // Fungsi untuk mendapatkan UID dari localStorage
     function getUserIdFromLocalStorage() {
-      return localStorage.getItem('x3va_user_uid');
+      try {
+        return localStorage.getItem('x3va_user_uid');
+      } catch (e) {
+        // Fallback for browsers with localStorage disabled
+        console.log('LocalStorage not available');
+        return null;
+      }
     }
 
     // Fungsi untuk menghapus UID dari localStorage
     function removeUserIdFromLocalStorage() {
-      localStorage.removeItem('x3va_user_uid');
+      try {
+        localStorage.removeItem('x3va_user_uid');
+      } catch (e) {
+        // Fallback for browsers with localStorage disabled
+        console.log('LocalStorage not available');
+      }
     }
 
     // Fungsi untuk membuat custom token dari UID
@@ -2882,6 +3069,30 @@
         initializeAuth();
       }
     });
+    
+    // Check for browser compatibility
+    function checkBrowserCompatibility() {
+      // Check for flexbox support
+      const flexboxSupported = CSS.supports('display', 'flex');
+      
+      // Check for CSS Grid support
+      const gridSupported = CSS.supports('display', 'grid');
+      
+      // Check for backdrop-filter support
+      const backdropFilterSupported = CSS.supports('backdrop-filter', 'blur(8px)');
+      
+      // Check for CSS Variables support
+      const cssVarsSupported = CSS.supports('color', 'var(--test)');
+      
+      // If any critical feature is not supported, add fallback class
+      if (!flexboxSupported || !gridSupported || !backdropFilterSupported || !cssVarsSupported) {
+        document.body.classList.add('no-flexbox');
+        console.log('Browser compatibility mode activated');
+      }
+    }
+    
+    // Run compatibility check on load
+    checkBrowserCompatibility();
   </script>
 
 </body>
